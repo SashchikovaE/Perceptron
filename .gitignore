@@ -7,3 +7,8 @@
 /Scripts
 /share
 /pyvenv.cfg
+/model
+/data/test.csv
+/data/train.csv
+/data/val.csv
+
