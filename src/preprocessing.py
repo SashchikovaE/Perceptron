@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
 import joblib
+import numpy as np
 
 class DataPreprocessor:
     def __init__(self, file='train.csv'):
@@ -39,9 +40,28 @@ class DataPreprocessor:
         plt.savefig(file, bbox_inches='tight')
         plt.show()
 
+    def drop_correlated_features(self, threshold=0.95):
+        if 'target' in self.df.columns:
+            target = self.df['target']
+            features = self.df.drop(columns=['target'])
+        else:
+            target = None
+            features = self.df
+        numeric = features.select_dtypes(include=['int64', 'float64'])
+        corr = numeric.corr().abs()
+        upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+        to_drop = [col for col in upper.columns if (upper[col] > threshold).any()]
+        self.df = features.drop(columns=to_drop)
+        if target is not None:
+            self.df['target'] = target
+        return to_drop
+
+    def drop_columns(self, drop_cols):
+        self.df = self.df.drop(columns=drop_cols, errors='ignore')
+
     def get_path(self):
         cur_file = Path(__file__)
-        model_dir = cur_file.parent.parent / 'api_files'
+        model_dir = cur_file.parent.parent / 'model'
         model_dir.mkdir(parents=True, exist_ok=True)
         model_path = model_dir / 'normalization.joblib'
         return model_path
@@ -80,13 +100,31 @@ class DataPreprocessor:
             self.df = self.df.drop('2', axis=1)
             self.df['target'] = target
 
-    def preprocess(self, loaded=False):
-        self.make_header()
-        self.analyze_empty_rows_and_cols()
-        self.encode_categorical_data('2', {'M': 0, 'B': 1})
-        print(self.df.describe())
-        self.visualize_target_distribution()
-        #self.visualize_correlation_matrix()
-        self.normalize_data(loaded=False)
-        self.move_target_to_end()
-        self.print_table()
+    def preprocess(self, loaded=False, selection='train', drop_cols=None):
+        if selection == 'train':
+            self.make_header()
+            self.analyze_empty_rows_and_cols()
+            self.encode_categorical_data('2', {'M': 0, 'B': 1})
+            print(self.df.describe())
+            self.visualize_target_distribution()
+            self.visualize_correlation_matrix()
+            self.move_target_to_end()
+            drop_cols = self.drop_correlated_features()
+            self.normalize_data(loaded=False)
+            self.print_table()
+            return drop_cols
+        elif selection == 'test':
+            self.make_header()
+            self.analyze_empty_rows_and_cols()
+            self.encode_categorical_data('2', {'M': 0, 'B': 1})
+            self.move_target_to_end()
+            self.drop_columns(drop_cols)
+            self.normalize_data(loaded=True)
+        else:
+            self.make_header()
+            self.analyze_empty_rows_and_cols()
+            self.encode_categorical_data('2', {'M': 0, 'B': 1})
+            self.drop_columns(drop_cols)
+            self.move_target_to_end()
+            self.normalize_data(loaded=False)
+
