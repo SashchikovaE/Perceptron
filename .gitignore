@@ -1,0 +1,9 @@
+# created by virtualenv automatically
+/__pycahe__
+/venv
+/.idea/
+/src/__pycahe__/
+/Lib
+/Scripts
+/share
+/pyvenv.cfg
